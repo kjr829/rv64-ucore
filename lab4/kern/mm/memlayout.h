@@ -37,7 +37,7 @@
 
 #define KERNEL_BEGIN_PADDR 0x80200000
 #define KERNEL_BEGIN_VADDR 0xFFFFFFFFC0200000
-#define PHYSICAL_MEMORY_END 0x8800000
+#define PHYSICAL_MEMORY_END 0x88000000
 
 
 #define KSTACKPAGE          2                           // # of pages in kernel stack
