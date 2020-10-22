@@ -91,7 +91,7 @@ size_t nr_free_pages(void) {
 static void page_init(void) {
     extern char kern_entry[];
 
-    va_pa_offset = KERNBASE - 0x80200000;
+    va_pa_offset = KERNBASE - 0x80020000;
     uint64_t mem_begin = KERNEL_BEGIN_PADDR;
     uint64_t mem_size = PHYSICAL_MEMORY_END - KERNEL_BEGIN_PADDR;
     uint64_t mem_end = PHYSICAL_MEMORY_END; //硬编码取代 sbi_query_memory()接口
@@ -188,7 +188,7 @@ void pmm_init(void) {
     boot_pgdir = (pte_t*)boot_page_table_sv39;
     boot_cr3 = PADDR(boot_pgdir);
     check_pgdir();
-    static_assert(KERNBASE % PTSIZE == 0 && KERNTOP % PTSIZE == 0);
+    static_assert(KERNTOP % PTSIZE == 0);
 
     // map all physical memory to linear memory with base linear addr KERNBASE
     // linear_addr KERNBASE~KERNBASE+KMEMSIZE = phy_addr 0~KMEMSIZE
