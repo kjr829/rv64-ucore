@@ -395,6 +395,10 @@ static void check_pgdir(void) {
     // assert(npage <= KMEMSIZE / PGSIZE);
     // The memory starts at 2GB in RISC-V
     // so npage is always larger than KMEMSIZE / PGSIZE
+    size_t nr_free_store;
+
+    nr_free_store=nr_free_pages();
+
     assert(npage <= KERNTOP / PGSIZE);
     assert(boot_pgdir != NULL && (uint32_t)PGOFF(boot_pgdir) == 0);
     assert(get_page(boot_pgdir, 0x0, NULL) == NULL);
@@ -435,15 +439,24 @@ static void check_pgdir(void) {
     assert(page_ref(p2) == 0);
 
     assert(page_ref(pde2page(boot_pgdir[0])) == 1);
-    free_page(pde2page(boot_pgdir[0]));
+
+    pde_t *pd1=boot_pgdir,*pd0=page2kva(pde2page(boot_pgdir[0]));
+    free_page(pde2page(pd0[0]));
+    free_page(pde2page(pd1[0]));
     boot_pgdir[0] = 0;
+
+    assert(nr_free_store==nr_free_pages());
 
     cprintf("check_pgdir() succeeded!\n");
 }
 
 static void check_boot_pgdir(void) {
+    size_t nr_free_store;
     pte_t *ptep;
     int i;
+
+    nr_free_store=nr_free_pages();
+
     for (i = ROUNDDOWN(KERNBASE, PGSIZE); i < npage * PGSIZE; i += PGSIZE) {
         assert((ptep = get_pte(boot_pgdir, (uintptr_t)KADDR(i), 0)) != NULL);
         assert(PTE_ADDR(*ptep) == i);
@@ -466,9 +479,13 @@ static void check_boot_pgdir(void) {
     *(char *)(page2kva(p) + 0x100) = '\0';
     assert(strlen((const char *)0x100) == 0);
 
+    pde_t *pd1=boot_pgdir,*pd0=page2kva(pde2page(boot_pgdir[0]));
     free_page(p);
-    free_page(pde2page(boot_pgdir[0]));
+    free_page(pde2page(pd0[0]));
+    free_page(pde2page(pd1[0]));
     boot_pgdir[0] = 0;
+
+    assert(nr_free_store==nr_free_pages());
 
     cprintf("check_boot_pgdir() succeeded!\n");
 }
