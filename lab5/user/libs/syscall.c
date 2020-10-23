@@ -24,7 +24,7 @@ syscall(int64_t num, ...) {
         "ld a4, %5\n"
     	"ld a5, %6\n"
         "ecall\n"
-        "sd a0, %0"
+        "sw a0, %0"
         : "=m" (ret)
         : "m"(num), "m"(a[0]), "m"(a[1]), "m"(a[2]), "m"(a[3]), "m"(a[4])
         :"memory");
