@@ -354,14 +354,16 @@ check_pgfault(void) {
 
     assert(sum == 0);
 
+    pde_t *pd1=pgdir,*pd0=page2kva(pde2page(pgdir[0]));
     page_remove(pgdir, ROUNDDOWN(addr, PGSIZE));
-    free_page(pde2page(pgdir[0]));
+    free_page(pde2page(pd0[0]));
+    free_page(pde2page(pd1[0]));
     pgdir[0] = 0;
+    flush_tlb();
 
     mm->pgdir = NULL;
     mm_destroy(mm);
     check_mm_struct = NULL;
-    nr_free_pages_store--; // szx : 三级页表
 
     assert(nr_free_pages_store == nr_free_pages());
 

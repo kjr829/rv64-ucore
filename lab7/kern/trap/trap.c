@@ -173,7 +173,7 @@ void interrupt_handler(struct trapframe *tf) {
             break;
     }
 }
-
+void kernel_execve_ret(struct trapframe *tf,uintptr_t kstacktop);
 void exception_handler(struct trapframe *tf) {
     int ret;
     switch (tf->cause) {
@@ -190,7 +190,8 @@ void exception_handler(struct trapframe *tf) {
             cprintf("Breakpoint\n");
             if(tf->gpr.a7 == 10){
                 tf->epc += 4;
-                syscall(); 
+                syscall();
+                kernel_execve_ret(tf,current->kstack+KSTACKSIZE);
             }
             break;
         case CAUSE_MISALIGNED_LOAD:
