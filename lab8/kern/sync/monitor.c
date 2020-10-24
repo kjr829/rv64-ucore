@@ -22,6 +22,12 @@ monitor_init (monitor_t * mtp, size_t num_cv) {
     }
 }
 
+// Free monitor.
+void
+monitor_free (monitor_t * mtp, size_t num_cv) {
+    kfree(mtp->cv);
+}
+
 // Unlock one of threads waiting on the condition variable. 
 void 
 cond_signal (condvar_t *cvp) {

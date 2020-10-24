@@ -236,7 +236,7 @@ int philosopher_using_condvar(void * arg) { /* arg is the No. of philosopher 0~N
 
 void check_sync(void){
 
-    int i;
+    int i, pids[N];
 
     //check semaphore
     sem_init(&mutex, 1);
@@ -246,9 +246,12 @@ void check_sync(void){
         if (pid <= 0) {
             panic("create No.%d philosopher_using_semaphore failed.\n");
         }
+        pids[i] = pid;
         philosopher_proc_sema[i] = find_proc(pid);
         set_proc_name(philosopher_proc_sema[i], "philosopher_sema_proc");
     }
+    for (i=0;i<N;i++)
+        assert(do_wait(pids[i],NULL) == 0);
 
     //check condition variable
     monitor_init(&mt, N);
@@ -258,7 +261,11 @@ void check_sync(void){
         if (pid <= 0) {
             panic("create No.%d philosopher_using_condvar failed.\n");
         }
+        pids[i] = pid;
         philosopher_proc_condvar[i] = find_proc(pid);
         set_proc_name(philosopher_proc_condvar[i], "philosopher_condvar_proc");
     }
+    for (i=0;i<N;i++)
+        assert(do_wait(pids[i],NULL) == 0);
+    monitor_free(&mt, N);
 }
