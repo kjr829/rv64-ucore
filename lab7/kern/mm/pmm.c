@@ -96,7 +96,7 @@ size_t nr_free_pages(void) {
 static void page_init(void) {
     extern char kern_entry[];
 
-    va_pa_offset = KERNBASE - 0x80200000;
+    va_pa_offset = KERNBASE - 0x80020000;
 
     uint_t mem_begin = KERNEL_BEGIN_PADDR;
     uint_t mem_size = PHYSICAL_MEMORY_END - KERNEL_BEGIN_PADDR;
@@ -194,7 +194,7 @@ void pmm_init(void) {
 
     check_pgdir();
 
-    static_assert(KERNBASE % PTSIZE == 0 && KERNTOP % PTSIZE == 0);
+    static_assert(KERNTOP % PTSIZE == 0);
 
     // now the basic virtual memory map(see memalyout.h) is established.
     // check the correctness of the basic virtual memory map.
