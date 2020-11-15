@@ -726,6 +726,7 @@ load_icode(int fd, int argc, char **kargv) {
     current->mm = mm;
     current->cr3 = PADDR(mm->pgdir);
     lcr3(PADDR(mm->pgdir));
+    flush_tlb();
 
     //setup argc, argv
     uint32_t argv_size=0, i;
@@ -742,8 +743,8 @@ load_icode(int fd, int argc, char **kargv) {
         argv_size +=  strnlen(kargv[i],EXEC_MAX_ARG_LEN + 1)+1;
     }
     
-    stacktop = (uintptr_t)uargv - sizeof(int);
-    *(int *)stacktop = argc;
+    stacktop = (uintptr_t)uargv - sizeof(long);
+    *(long *)stacktop = argc;
     
     struct trapframe *tf = current->tf;
     // Keep sstatus

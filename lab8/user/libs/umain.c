@@ -20,7 +20,7 @@ initfd(int fd2, const char *path, uint32_t open_flags) {
 }
 
 void
-umain(int argc, char *argv[]) {
+umain(long argc, char *argv[]) {
     int fd;
     if ((fd = initfd(0, "stdin:", O_RDONLY)) < 0) {
         warn("open <stdin> failed: %e.\n", fd);
@@ -28,7 +28,7 @@ umain(int argc, char *argv[]) {
     if ((fd = initfd(1, "stdout:", O_WRONLY)) < 0) {
         warn("open <stdout> failed: %e.\n", fd);
     }
-    int ret = main(argc, argv);
+    int ret = main((int)argc, argv);
     exit(ret);
 }
 
