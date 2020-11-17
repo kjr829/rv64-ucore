@@ -14,6 +14,7 @@
 #include <proc.h>
 #include <kmonitor.h>
 #include <fs.h>
+#include <sdcard.h>
 
 int kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
@@ -33,6 +34,8 @@ kern_init(void) {
     // grade_backtrace();
 
     pmm_init();                 // init physical memory management
+
+    sd_init();                  // init SD card driver
 
     pic_init();                 // init interrupt controller
     idt_init();                 // init interrupt descriptor table

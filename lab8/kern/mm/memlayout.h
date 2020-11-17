@@ -23,7 +23,9 @@
  *                            |        Invalid Memory (*)       | --/--
  *     USERTOP -------------> +---------------------------------+ 0xB0000000
  *                            |           User stack            |
- *                            +---------------------------------+
+ *     IOTOP ---------------> +---------------------------------+ 0x60000000
+ *                            |        Fixed mapping for IO     | --/--
+ *     IOBASE --------------> +---------------------------------+ 0x30000000
  *                            |                                 |
  *                            :                                 :
  *                            |         ~~~~~~~~~~~~~~~~        |
@@ -57,6 +59,9 @@
 #define KERNEL_BEGIN_PADDR          0x80020000
 #define KERNEL_BEGIN_VADDR          0xFFFFFFFFC0020000
 
+#define IO_BEGIN_PADDR              (0x30000000U)
+#define IOSIZE                      (0x30000000U)
+#define IOTOP                       (IO_BEGIN_PADDR + IOSIZE)
 
 #define KSTACKPAGE          2                           // # of pages in kernel stack
 #define KSTACKSIZE          (KSTACKPAGE * PGSIZE)       // sizeof kernel stack

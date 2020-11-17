@@ -166,4 +166,4 @@ add_executable(lab8
         user/spin.c
         user/testbss.c
         user/waitkill.c
-        user/yield.c)
+        user/yield.c kern/driver/sdcard.h kern/driver/sdcard.c kern/driver/fpioa.h kern/driver/fpioa.c kern/driver/sysctl.h kern/driver/sysctl.c kern/driver/spi.h kern/driver/spi.c kern/driver/gpiohs.h kern/driver/gpiohs.c kern/driver/io.h libs/util.h kern/libs/util.c)

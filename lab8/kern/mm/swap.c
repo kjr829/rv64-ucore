@@ -10,9 +10,9 @@
 #include <kdebug.h>
 
 // the valid vaddr for check is between 0~CHECK_VALID_VADDR-1
-#define CHECK_VALID_VIR_PAGE_NUM 5
-#define BEING_CHECK_VALID_VADDR 0X1000
-#define CHECK_VALID_VADDR (CHECK_VALID_VIR_PAGE_NUM+1)*0x1000
+#define CHECK_VALID_VIR_PAGE_NUM (5)
+#define BEING_CHECK_VALID_VADDR (0X80001000)
+#define CHECK_VALID_VADDR (BEING_CHECK_VALID_VADDR + CHECK_VALID_VIR_PAGE_NUM * 0x1000)
 // the max number of valid physical page for check
 #define CHECK_VALID_PHY_PAGE_NUM 4
 // the max access seq number
@@ -98,8 +98,8 @@ swap_out(struct mm_struct *mm, int n, int in_tick)
           //assert(!PageReserved(page));
 
           //cprintf("SWAP: choose victim page 0x%08x\n", page);
-          
-          v=page->pra_vaddr; 
+
+          v=page->pra_vaddr;
           pte_t *ptep = get_pte(mm->pgdir, v, 0);
           assert((*ptep & PTE_V) != 0);
 
@@ -143,21 +143,21 @@ swap_in(struct mm_struct *mm, uintptr_t addr, struct Page **ptr_result)
 static inline void
 check_content_set(void)
 {
-     *(unsigned char *)0x1000 = 0x0a;
+     *(unsigned char *)0x80001000 = 0x0a;
      assert(pgfault_num==1);
-     *(unsigned char *)0x1010 = 0x0a;
+     *(unsigned char *)0x80001010 = 0x0a;
      assert(pgfault_num==1);
-     *(unsigned char *)0x2000 = 0x0b;
+     *(unsigned char *)0x80002000 = 0x0b;
      assert(pgfault_num==2);
-     *(unsigned char *)0x2010 = 0x0b;
+     *(unsigned char *)0x80002010 = 0x0b;
      assert(pgfault_num==2);
-     *(unsigned char *)0x3000 = 0x0c;
+     *(unsigned char *)0x80003000 = 0x0c;
      assert(pgfault_num==3);
-     *(unsigned char *)0x3010 = 0x0c;
+     *(unsigned char *)0x80003010 = 0x0c;
      assert(pgfault_num==3);
-     *(unsigned char *)0x4000 = 0x0d;
+     *(unsigned char *)0x80004000 = 0x0d;
      assert(pgfault_num==4);
-     *(unsigned char *)0x4010 = 0x0d;
+     *(unsigned char *)0x80004010 = 0x0d;
      assert(pgfault_num==4);
 }
 
@@ -186,10 +186,10 @@ check_swap(void)
      while ((le = list_next(le)) != &free_list) {
         struct Page *p = le2page(le, page_link);
         assert(PageProperty(p));
-        count ++, total += p->property;
+        count++, total += p->property;
      }
      assert(total == nr_free_pages());
-     cprintf("BEGIN check_swap: count %d, total %d\n",count,total);
+     cprintf("BEGIN check_swap: count %d, total %d\n", count, total);
      
      //now we set the phy pages env     
      struct mm_struct *mm = mm_create();
@@ -201,7 +201,7 @@ check_swap(void)
      check_mm_struct = mm;
 
      pde_t *pgdir = mm->pgdir = boot_pgdir;
-     assert(pgdir[0] == 0);
+     assert(pgdir[2] == 0);
 
      struct vma_struct *vma = vma_create(BEING_CHECK_VALID_VADDR, CHECK_VALID_VADDR, VM_WRITE | VM_READ);
      assert(vma != NULL);
@@ -209,13 +209,13 @@ check_swap(void)
      insert_vma_struct(mm, vma);
 
      //setup the temp Page Table vaddr 0~4MB
-     cprintf("setup Page Table for vaddr 0X1000, so alloc a page\n");
-     pte_t *temp_ptep=NULL;
+     cprintf("setup Page Table for vaddr 0X80001000, so alloc two pages\n");
+     pte_t *temp_ptep = NULL;
      temp_ptep = get_pte(mm->pgdir, BEING_CHECK_VALID_VADDR, 1);
-     assert(temp_ptep!= NULL);
+     assert(temp_ptep != NULL);
      cprintf("setup Page Table vaddr 0~4MB OVER!\n");
-     
-     for (i=0;i<CHECK_VALID_PHY_PAGE_NUM;i++) {
+
+     for (i = 0; i < CHECK_VALID_PHY_PAGE_NUM; i++) {
           check_rp[i] = alloc_page();
           assert(check_rp[i] != NULL );
           assert(!PageProperty(check_rp[i]));
@@ -228,25 +228,25 @@ check_swap(void)
      
      unsigned int nr_free_store = nr_free;
      nr_free = 0;
-     for (i=0;i<CHECK_VALID_PHY_PAGE_NUM;i++) {
-        free_pages(check_rp[i],1);
+     for (i = 0; i < CHECK_VALID_PHY_PAGE_NUM; i++) {
+        free_pages(check_rp[i], 1);
      }
-     assert(nr_free==CHECK_VALID_PHY_PAGE_NUM);
+     assert(nr_free == CHECK_VALID_PHY_PAGE_NUM);
      
      cprintf("set up init env for check_swap begin!\n");
      //setup initial vir_page<->phy_page environment for page relpacement algorithm 
 
      
-     pgfault_num=0;
+     pgfault_num = 0;
      
      check_content_set();
-     assert( nr_free == 0);         
-     for(i = 0; i<MAX_SEQ_NO ; i++) 
-         swap_out_seq_no[i]=swap_in_seq_no[i]=-1;
+     assert(nr_free == 0);
+     for(i = 0; i < MAX_SEQ_NO ; i++)
+         swap_out_seq_no[i] = swap_in_seq_no[i] = -1;
      
-     for (i= 0;i<CHECK_VALID_PHY_PAGE_NUM;i++) {
-         check_ptep[i]=0;
-         check_ptep[i] = get_pte(pgdir, (i+1)*0x1000, 0);
+     for (i = 0; i < CHECK_VALID_PHY_PAGE_NUM; i++) {
+         check_ptep[i] = 0;
+         check_ptep[i] = get_pte(pgdir, BEING_CHECK_VALID_VADDR + i * 0x1000, 0);
          //cprintf("i %d, check_ptep addr %x, value %x\n", i, check_ptep[i], *check_ptep[i]);
          assert(check_ptep[i] != NULL);
          assert(pte2page(*check_ptep[i]) == check_rp[i]);
@@ -254,15 +254,15 @@ check_swap(void)
      }
      cprintf("set up init env for check_swap over!\n");
      // now access the virt pages to test  page relpacement algorithm 
-     ret=check_content_access();
-     assert(ret==0);
+     ret = check_content_access();
+     assert(ret == 0);
 
      nr_free = nr_free_store;
      free_list = free_list_store;
 
      //restore kernel mem env
-     for (i=0;i<CHECK_VALID_PHY_PAGE_NUM;i++) {
-         free_pages(check_rp[i],1);
+     for (i = 0; i < CHECK_VALID_PHY_PAGE_NUM; i++) {
+         free_pages(check_rp[i], 1);
      } 
 
      //free_page(pte2page(*temp_ptep));
@@ -271,10 +271,10 @@ check_swap(void)
      mm_destroy(mm);
      check_mm_struct = NULL;
 
-     pde_t *pd1=pgdir,*pd0=page2kva(pde2page(boot_pgdir[0]));
+     pde_t *pd1 = pgdir, *pd0 = page2kva(pde2page(boot_pgdir[2]));
      free_page(pde2page(pd0[0]));
-     free_page(pde2page(pd1[0]));
-     pgdir[0] = 0;
+     free_page(pde2page(pd1[2]));
+     pgdir[2] = 0;
      flush_tlb();
 
      le = &free_list;
@@ -282,8 +282,8 @@ check_swap(void)
          struct Page *p = le2page(le, page_link);
          count --, total -= p->property;
      }
-     assert(count==0);
-     assert(total==0);
+     assert(count == 0);
+     assert(total == 0);
 
      cprintf("check_swap() succeeded!\n");
 }
