@@ -308,7 +308,9 @@ setup_pgdir(struct mm_struct *mm) {
         return -E_NO_MEM;
     }
     pde_t *pgdir = page2kva(page);
-    memcpy(pgdir, boot_pgdir, PGSIZE);
+    memset(pgdir, 0, PGSIZE);
+    pgdir[511] = boot_pgdir[511];
+    setup_kernel_io_mapping(pgdir);
 
     mm->pgdir = pgdir;
     return 0;
@@ -317,6 +319,7 @@ setup_pgdir(struct mm_struct *mm) {
 // put_pgdir - free the memory space of PDT
 static void
 put_pgdir(struct mm_struct *mm) {
+    free_kernel_io_mapping(mm->pgdir);
     free_page(kva2page(mm->pgdir));
 }
 

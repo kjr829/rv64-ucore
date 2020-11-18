@@ -45,8 +45,11 @@ void load_esp0(uintptr_t esp0);
 void tlb_invalidate(pde_t *pgdir, uintptr_t la);
 struct Page *pgdir_alloc_page(pde_t *pgdir, uintptr_t la, uint32_t perm);
 void unmap_range(pde_t *pgdir, uintptr_t start, uintptr_t end);
-void exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end);
+void exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end, int check);
+void unmap_range_io(pde_t *pgdir, uintptr_t start, uintptr_t end);
 int copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share);
+void setup_kernel_io_mapping(pde_t *pgdir);
+void free_kernel_io_mapping(pde_t *pgdir);
 
 void print_pgdir(void);
 

@@ -12,6 +12,7 @@
 #include <sync.h>
 #include <vmm.h>
 #include <riscv.h>
+#include <io.h>
 
 // virtual address of physical page array
 struct Page *pages;
@@ -29,6 +30,14 @@ uintptr_t boot_cr3;
 
 // physical memory management
 const struct pmm_manager *pmm_manager;
+
+const io_region_t io_regions[IO_REGION_NUM] =
+        {
+            [0] = {IO_REGION_START0, IO_REGION_END0, IO_REGION_END0 - IO_REGION_START0},
+            [1] = {IO_REGION_START1, IO_REGION_END1, IO_REGION_END1 - IO_REGION_START1},
+            [2] = {IO_REGION_START2, IO_REGION_END2, IO_REGION_END2 - IO_REGION_START2},
+            [3] = {IO_REGION_START3, IO_REGION_END3, IO_REGION_END3 - IO_REGION_START3},
+        };
 
 static void check_alloc_page(void);
 static void check_pgdir(void);
@@ -165,6 +174,18 @@ static void *boot_alloc_page(void) {
     return page2kva(p);
 }
 
+void setup_kernel_io_mapping(pde_t *pgdir){
+    for (int i = 0; i < IO_REGION_NUM; i++)
+        boot_map_segment(pgdir, io_regions[i].io_start, io_regions[i].io_size, io_regions[i].io_start, PTE_R | PTE_W);
+}
+
+void free_kernel_io_mapping(pde_t *pgdir){
+    for (int i = 0; i < IO_REGION_NUM; i++)
+        unmap_range_io(pgdir, io_regions[i].io_start, io_regions[i].io_end);
+    for (int i = 0; i < IO_REGION_NUM; i++)
+        exit_range(pgdir, io_regions[i].io_start, io_regions[i].io_end, 0);
+}
+
 /**
  * from transient boot pgdir switch to a new one and add some protection
  * 1. switch pgdir
@@ -181,14 +202,14 @@ switch_kernel_memorylayout(){
 
     // new page directory
     pde_t *kern_pgdir = (pde_t *)boot_alloc_page();
-    memset(kern_pgdir,0,PGSIZE);
+    memset(kern_pgdir, 0, PGSIZE);
 
     // insert kernel mappings
     extern const char etext[];
-    uintptr_t retext = ROUNDUP((uintptr_t)etext,PGSIZE);
-    boot_map_segment(kern_pgdir,KERNBASE,retext-KERNBASE,PADDR(KERNBASE),PTE_R|PTE_X);
-    boot_map_segment(kern_pgdir,retext,KERNTOP-retext,PADDR(retext),PTE_R|PTE_W);
-    boot_map_segment(kern_pgdir,IO_BEGIN_PADDR,IOSIZE,IO_BEGIN_PADDR,PTE_R|PTE_W);
+    uintptr_t retext = ROUNDUP((uintptr_t)etext, PGSIZE);
+    boot_map_segment(kern_pgdir, KERNBASE, retext - KERNBASE, PADDR(KERNBASE), PTE_R | PTE_X);
+    boot_map_segment(kern_pgdir, retext, KERNTOP - retext, PADDR(retext), PTE_R | PTE_W);
+    setup_kernel_io_mapping(kern_pgdir);
 
     // perform switch
     boot_pgdir = kern_pgdir;
@@ -208,8 +229,8 @@ switch_kernel_memorylayout(){
         bootstack[-PGSIZE] = 0;
 
         // set pages beneath and above the kernel stack as guardians
-        boot_map_segment(boot_pgdir,bootstackguard,PGSIZE,PADDR(bootstackguard),0);
-        boot_map_segment(boot_pgdir,boot_page_table_sv39,PGSIZE,PADDR(boot_page_table_sv39),0);
+        boot_map_segment(boot_pgdir, bootstackguard, PGSIZE, PADDR(bootstackguard), 0);
+        boot_map_segment(boot_pgdir, boot_page_table_sv39, PGSIZE, PADDR(boot_page_table_sv39), 0);
         flush_tlb();
 
         // the following four statements should all crash
@@ -388,15 +409,28 @@ void unmap_range(pde_t *pgdir, uintptr_t start, uintptr_t end) {
     } while (start != 0 && start < end);
 }
 
-void exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end) {
-    assert(start % PGSIZE == 0 && end % PGSIZE == 0);
-    assert(USER_ACCESS(start, end));
+static void try_to_free_table(pde_t *table, pde_t *entryp, uint32_t nentry)
+{
+    int free = 1;
+    for (int i = 0; i < nentry; i++)
+        if (table[i] & PTE_V){
+            free = 0;
+            break;
+        }
+    if (free) {
+        free_page(pde2page(*entryp));
+        *entryp = 0;
+    }
+}
 
-    uintptr_t d1start, d0start;
-    int free_pt, free_pd0;
-    pde_t *pd0, *pt, pde1, pde0;
-    d1start = ROUNDDOWN(start, PDSIZE);
-    d0start = ROUNDDOWN(start, PTSIZE);
+void exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end, int check) {
+
+    assert(start % PGSIZE == 0 && end % PGSIZE == 0);
+    if (check)
+        assert(USER_ACCESS(start, end));
+
+    uintptr_t d1start = ROUNDDOWN(start, PDSIZE), d0start = ROUNDDOWN(start, PTSIZE);
+    pde_t *pd0, pde1, pde0;
     do {
         // level 1 page directory entry
         pde1 = pgdir[PDX1(d1start)];
@@ -407,38 +441,40 @@ void exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end) {
         // and update level 1 entry
         if (pde1&PTE_V){
             pd0 = page2kva(pde2page(pde1));
-            // try to free all page tables
-            free_pd0 = 1;
             do {
                 pde0 = pd0[PDX0(d0start)];
-                if (pde0&PTE_V) {
-                    pt = page2kva(pde2page(pde0));
-                    // try to free page table
-                    free_pt = 1;
-                    for (int i = 0;i <NPTEENTRY;i++)
-                        if (pt[i]&PTE_V){
-                            free_pt = 0;
-                            break;
-                        }
-                    // free it only when all entry are already invalid
-                    if (free_pt) {
-                        free_page(pde2page(pde0));
-                        pd0[PDX0(d0start)] = 0;
-                    }
-                } else
-                    free_pd0 = 0;
+                // try to free page table
+                if (pde0&PTE_V)
+                    try_to_free_table(page2kva(pde2page(pde0)), &pd0[PDX0(d0start)], NPTEENTRY);
                 d0start += PTSIZE;
             } while (d0start != 0 && d0start < d1start+PDSIZE && d0start < end);
             // free level 0 page directory only when all pde0s in it are already invalid
-            if (free_pd0) {
-                free_page(pde2page(pde1));
-                pgdir[PDX1(d1start)] = 0;
-            }
+            try_to_free_table(pd0, &pgdir[PDX1(d1start)], NPDEENTRY);
         }
         d1start += PDSIZE;
         d0start = d1start;
     } while (d1start != 0 && d1start < end);
 }
+
+/*
+ * Difference between origin version is that io mapping doesn't
+ * really occupy physical pages, so there is no need to decrease
+ * page reference count, but simply set page table entry to 0.
+ */
+void unmap_range_io(pde_t *pgdir, uintptr_t start, uintptr_t end) {
+    assert(start % PGSIZE == 0 && end % PGSIZE == 0);
+
+    do {
+        pte_t *ptep = get_pte(pgdir, start, 0);
+        if (ptep == NULL) {
+            start = ROUNDDOWN(start + PTSIZE, PTSIZE);
+            continue;
+        }
+        *ptep = 0;
+        start += PGSIZE;
+    } while (start != 0 && start < end);
+}
+
 /* copy_range - copy content of memory (start, end) of one process A to another
  * process B
  * @to:    the addr of process B's Page Directory
@@ -594,51 +630,51 @@ static void check_pgdir(void) {
 
     assert(npage <= KERNTOP / PGSIZE);
     assert(boot_pgdir != NULL && (uint32_t)PGOFF(boot_pgdir) == 0);
-    assert(boot_pgdir[2] == 0);
-    assert(get_page(boot_pgdir, 0x80000000, NULL) == NULL);
+    assert(boot_pgdir[3] == 0);
+    assert(get_page(boot_pgdir, 0xC0000000, NULL) == NULL);
 
     struct Page *p1, *p2;
     p1 = alloc_page();
-    assert(page_insert(boot_pgdir, p1, 0x80000000, 0) == 0);
+    assert(page_insert(boot_pgdir, p1, 0xC0000000, 0) == 0);
 
     pte_t *ptep;
-    assert((ptep = get_pte(boot_pgdir, 0x80000000, 0)) != NULL);
+    assert((ptep = get_pte(boot_pgdir, 0xC0000000, 0)) != NULL);
     assert(pte2page(*ptep) == p1);
     assert(page_ref(p1) == 1);
 
-    ptep = (pte_t *)KADDR(PDE_ADDR(boot_pgdir[2]));
+    ptep = (pte_t *)KADDR(PDE_ADDR(boot_pgdir[3]));
     ptep = (pte_t *)KADDR(PDE_ADDR(ptep[0])) + 1;
-    assert(get_pte(boot_pgdir, 0x80000000 + PGSIZE, 0) == ptep);
+    assert(get_pte(boot_pgdir, 0xC0000000 + PGSIZE, 0) == ptep);
 
     p2 = alloc_page();
-    assert(page_insert(boot_pgdir, p2, 0x80000000 + PGSIZE, PTE_U | PTE_W) == 0);
-    assert((ptep = get_pte(boot_pgdir, 0x80000000 + PGSIZE, 0)) != NULL);
+    assert(page_insert(boot_pgdir, p2, 0xC0000000 + PGSIZE, PTE_U | PTE_W) == 0);
+    assert((ptep = get_pte(boot_pgdir, 0xC0000000 + PGSIZE, 0)) != NULL);
     assert(*ptep & PTE_U);
     assert(*ptep & PTE_W);
-    assert(boot_pgdir[2] & PTE_U);
+    assert(boot_pgdir[3] & PTE_U);
     assert(page_ref(p2) == 1);
 
-    assert(page_insert(boot_pgdir, p1, 0x80000000 + PGSIZE, 0) == 0);
+    assert(page_insert(boot_pgdir, p1, 0xC0000000 + PGSIZE, 0) == 0);
     assert(page_ref(p1) == 2);
     assert(page_ref(p2) == 0);
-    assert((ptep = get_pte(boot_pgdir, 0x80000000 + PGSIZE, 0)) != NULL);
+    assert((ptep = get_pte(boot_pgdir, 0xC0000000 + PGSIZE, 0)) != NULL);
     assert(pte2page(*ptep) == p1);
     assert((*ptep & PTE_U) == 0);
 
-    page_remove(boot_pgdir, 0x80000000);
+    page_remove(boot_pgdir, 0xC0000000);
     assert(page_ref(p1) == 1);
     assert(page_ref(p2) == 0);
 
-    page_remove(boot_pgdir, 0x80000000 + PGSIZE);
+    page_remove(boot_pgdir, 0xC0000000 + PGSIZE);
     assert(page_ref(p1) == 0);
     assert(page_ref(p2) == 0);
 
-    assert(page_ref(pde2page(boot_pgdir[2])) == 1);
+    assert(page_ref(pde2page(boot_pgdir[3])) == 1);
 
-    pde_t *pd1 = boot_pgdir, *pd0 = page2kva(pde2page(pd1[2]));
+    pde_t *pd1 = boot_pgdir, *pd0 = page2kva(pde2page(pd1[3]));
     free_page(pde2page(pd0[0]));
-    free_page(pde2page(pd1[2]));
-    boot_pgdir[2] = 0;
+    free_page(pde2page(pd1[3]));
+    boot_pgdir[3] = 0;
     flush_tlb();
 
     assert(nr_free_store==nr_free_pages());
@@ -659,27 +695,27 @@ static void check_boot_pgdir(void) {
     }
 
 
-    assert(boot_pgdir[2] == 0);
+    assert(boot_pgdir[3] == 0);
 
     struct Page *p;
     p = alloc_page();
-    assert(page_insert(boot_pgdir, p, 0x80000100, PTE_W | PTE_R) == 0);
+    assert(page_insert(boot_pgdir, p, 0xC0000100, PTE_W | PTE_R) == 0);
     assert(page_ref(p) == 1);
-    assert(page_insert(boot_pgdir, p, 0x80000100 + PGSIZE, PTE_W | PTE_R) == 0);
+    assert(page_insert(boot_pgdir, p, 0xC0000100 + PGSIZE, PTE_W | PTE_R) == 0);
     assert(page_ref(p) == 2);
 
     const char *str = "ucore: Hello world!!";
-    strcpy((void *)0x80000100, str);
-    assert(strcmp((void *)0x80000100, (void *)(0x80000100 + PGSIZE)) == 0);
+    strcpy((void *)0xC0000100, str);
+    assert(strcmp((void *)0xC0000100, (void *)(0xC0000100 + PGSIZE)) == 0);
 
     *(char *)(page2kva(p) + 0x100) = '\0';
-    assert(strlen((const char *)0x80000100) == 0);
+    assert(strlen((const char *)0xC0000100) == 0);
 
-    pde_t *pd1 = boot_pgdir, *pd0 = page2kva(pde2page(boot_pgdir[2]));
+    pde_t *pd1 = boot_pgdir, *pd0 = page2kva(pde2page(boot_pgdir[3]));
     free_page(p);
     free_page(pde2page(pd0[0]));
-    free_page(pde2page(pd1[2]));
-    boot_pgdir[2] = 0;
+    free_page(pde2page(pd1[3]));
+    boot_pgdir[3] = 0;
     flush_tlb();
 
     assert(nr_free_store==nr_free_pages());

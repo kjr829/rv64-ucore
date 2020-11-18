@@ -11,7 +11,7 @@
 
 // the valid vaddr for check is between 0~CHECK_VALID_VADDR-1
 #define CHECK_VALID_VIR_PAGE_NUM (5)
-#define BEING_CHECK_VALID_VADDR (0X80001000)
+#define BEING_CHECK_VALID_VADDR (0XC0001000)
 #define CHECK_VALID_VADDR (BEING_CHECK_VALID_VADDR + CHECK_VALID_VIR_PAGE_NUM * 0x1000)
 // the max number of valid physical page for check
 #define CHECK_VALID_PHY_PAGE_NUM 4
@@ -143,21 +143,21 @@ swap_in(struct mm_struct *mm, uintptr_t addr, struct Page **ptr_result)
 static inline void
 check_content_set(void)
 {
-     *(unsigned char *)0x80001000 = 0x0a;
+     *(unsigned char *)0xC0001000 = 0x0a;
      assert(pgfault_num==1);
-     *(unsigned char *)0x80001010 = 0x0a;
+     *(unsigned char *)0xC0001010 = 0x0a;
      assert(pgfault_num==1);
-     *(unsigned char *)0x80002000 = 0x0b;
+     *(unsigned char *)0xC0002000 = 0x0b;
      assert(pgfault_num==2);
-     *(unsigned char *)0x80002010 = 0x0b;
+     *(unsigned char *)0xC0002010 = 0x0b;
      assert(pgfault_num==2);
-     *(unsigned char *)0x80003000 = 0x0c;
+     *(unsigned char *)0xC0003000 = 0x0c;
      assert(pgfault_num==3);
-     *(unsigned char *)0x80003010 = 0x0c;
+     *(unsigned char *)0xC0003010 = 0x0c;
      assert(pgfault_num==3);
-     *(unsigned char *)0x80004000 = 0x0d;
+     *(unsigned char *)0xC0004000 = 0x0d;
      assert(pgfault_num==4);
-     *(unsigned char *)0x80004010 = 0x0d;
+     *(unsigned char *)0xC0004010 = 0x0d;
      assert(pgfault_num==4);
 }
 
@@ -201,7 +201,7 @@ check_swap(void)
      check_mm_struct = mm;
 
      pde_t *pgdir = mm->pgdir = boot_pgdir;
-     assert(pgdir[2] == 0);
+     assert(pgdir[3] == 0);
 
      struct vma_struct *vma = vma_create(BEING_CHECK_VALID_VADDR, CHECK_VALID_VADDR, VM_WRITE | VM_READ);
      assert(vma != NULL);
@@ -209,7 +209,7 @@ check_swap(void)
      insert_vma_struct(mm, vma);
 
      //setup the temp Page Table vaddr 0~4MB
-     cprintf("setup Page Table for vaddr 0X80001000, so alloc two pages\n");
+     cprintf("setup Page Table for vaddr 0XC0001000, so alloc two pages\n");
      pte_t *temp_ptep = NULL;
      temp_ptep = get_pte(mm->pgdir, BEING_CHECK_VALID_VADDR, 1);
      assert(temp_ptep != NULL);
@@ -271,10 +271,10 @@ check_swap(void)
      mm_destroy(mm);
      check_mm_struct = NULL;
 
-     pde_t *pd1 = pgdir, *pd0 = page2kva(pde2page(boot_pgdir[2]));
+     pde_t *pd1 = pgdir, *pd0 = page2kva(pde2page(boot_pgdir[3]));
      free_page(pde2page(pd0[0]));
-     free_page(pde2page(pd1[2]));
-     pgdir[2] = 0;
+     free_page(pde2page(pd1[3]));
+     pgdir[3] = 0;
      flush_tlb();
 
      le = &free_list;

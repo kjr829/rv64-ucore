@@ -25,6 +25,7 @@
 #define SBI_REMOTE_SFENCE_VMA 6
 #define SBI_REMOTE_SFENCE_VMA_ASID 7
 #define SBI_SHUTDOWN 8
+#define SBI_REGISTER_DEVINTR 9
 
 #define SBI_CALL(which, arg0, arg1, arg2) ({			\
 	register uintptr_t a0 asm ("a0") = (uintptr_t)(arg0);	\
@@ -95,6 +96,10 @@ static inline void sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
 					      unsigned long asid)
 {
 	SBI_CALL_1(SBI_REMOTE_SFENCE_VMA_ASID, hart_mask);
+}
+
+static inline void sbi_register_devintr(uintptr_t entry) {
+    SBI_CALL_1(SBI_REGISTER_DEVINTR, entry);
 }
 
 #endif /* !__SBI_H__ */

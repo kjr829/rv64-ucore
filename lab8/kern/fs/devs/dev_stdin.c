@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <error.h>
 #include <assert.h>
+#include <sbi.h>
+#include <io.h>
 
 #define STDIN_BUFSIZE               4096
 
@@ -27,9 +29,6 @@ dev_stdin_write(char c) {
             stdin_buffer[p_wpos % STDIN_BUFSIZE] = c;
             if (p_wpos - p_rpos < STDIN_BUFSIZE) {
                 p_wpos ++;
-            }
-            if (!wait_queue_empty(wait_queue)) {
-                wakeup_queue(wait_queue, WT_KBD, 1);
             }
         }
         local_intr_restore(intr_flag);
@@ -97,6 +96,12 @@ stdin_ioctl(struct device *dev, int op, void *data) {
     return -E_INVAL;
 }
 
+void input_wakeup()
+{
+    if (p_rpos < p_wpos && !wait_queue_empty(wait_queue))
+        wakeup_queue(wait_queue, WT_KBD, 1);
+}
+
 static void
 stdin_device_init(struct device *dev) {
     dev->d_blocks = 0;
@@ -110,6 +115,18 @@ stdin_device_init(struct device *dev) {
     wait_queue_init(wait_queue);
 }
 
+void dev_intr() {
+    volatile uint32_t *hart0m_claim = (volatile uint32_t *)UARTHS_IRQ;
+    volatile uint32_t *reg = (volatile uint32_t *)UARTHS_DATA_REG;
+    uint32_t c, irq = *hart0m_claim;
+    if (irq == 0x21){
+        c = *reg;
+        if (c <= 0xFF)
+            dev_stdin_write(c);
+    }
+    *hart0m_claim = irq;
+}
+
 void
 dev_init_stdin(void) {
     struct inode *node;
@@ -117,6 +134,7 @@ dev_init_stdin(void) {
         panic("stdin: dev_create_node.\n");
     }
     stdin_device_init(vop_info(node, device));
+    sbi_register_devintr(dev_intr - (KERNBASE - KERNEL_BEGIN_PADDR));
 
     int ret;
     if ((ret = vfs_add_dev("stdin", node, 0)) != 0) {

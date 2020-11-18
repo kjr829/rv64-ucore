@@ -220,7 +220,7 @@ exit_mmap(struct mm_struct *mm) {
     }
     while ((le = list_next(le)) != list) {
         struct vma_struct *vma = le2vma(le, list_link);
-        exit_range(pgdir, vma->vm_start, vma->vm_end);
+        exit_range(pgdir, vma->vm_start, vma->vm_end, 1);
     }
 }
 
@@ -332,14 +332,14 @@ check_pgfault(void) {
 
     struct mm_struct *mm = check_mm_struct;
     pde_t *pgdir = mm->pgdir = boot_pgdir;
-    assert(pgdir[2] == 0);
+    assert(pgdir[3] == 0);
 
-    struct vma_struct *vma = vma_create(0x80000000, 0x80000000 + PTSIZE, VM_WRITE);
+    struct vma_struct *vma = vma_create(0xC0000000, 0xC0000000 + PTSIZE, VM_WRITE);
     assert(vma != NULL);
 
     insert_vma_struct(mm, vma);
 
-    uintptr_t addr = 0x80000100;
+    uintptr_t addr = 0xC0000100;
     assert(find_vma(mm, addr) == vma);
 
     int i, sum = 0;
@@ -354,11 +354,11 @@ check_pgfault(void) {
 
     assert(sum == 0);
 
-    pde_t *pd1 = pgdir, *pd0 = page2kva(pde2page(pgdir[2]));
+    pde_t *pd1 = pgdir, *pd0 = page2kva(pde2page(pgdir[3]));
     page_remove(pgdir, ROUNDDOWN(addr, PGSIZE));
     free_page(pde2page(pd0[0]));
-    free_page(pde2page(pd1[2]));
-    pgdir[2] = 0;
+    free_page(pde2page(pd1[3]));
+    pgdir[3] = 0;
     flush_tlb();
 
     mm->pgdir = NULL;
