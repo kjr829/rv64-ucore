@@ -532,6 +532,7 @@ do_exit(int error_code) {
             mm_destroy(mm);
         }
         current->mm = NULL;
+        put_files(current);
     }
     current->state = PROC_ZOMBIE;
     current->exit_code = error_code;
