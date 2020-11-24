@@ -51,6 +51,8 @@ SED		:= sed
 SH		:= sh
 TR		:= tr
 TOUCH	:= touch -c
+PYTHON	:= python3
+TERM	:= miniterm
 
 OBJDIR	:= obj
 BINDIR	:= bin
@@ -231,6 +233,16 @@ $(UCOREIMG): $(kernel)
 
 $(call create_target,ucore.img)
 
+# -------------------------------------------------------------------
+# create kernel.img
+KERNELIMG	:= $(call totarget,kernel.img)
+BOOTLOADER	:= tools/rustsbi-k210.bin
+PORT		:= /dev/ttyUSB0
+
+$(KERNELIMG): $(UCOREIMG) $(SWAPIMG) $(SFSIMG) $(BOOTLOADER)
+	$(COPY) $(BOOTLOADER) $@
+	$(V)dd if=$(UCOREIMG) of=$@ bs=128K seek=1
+
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 $(call finish_all)
@@ -268,6 +280,9 @@ qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 		-bios default \
 		-device loader,file=$(UCOREIMG),addr=0x80200000
 
+k210: $(KERNELIMG)
+	$(PYTHON) tools/kflash.py -p $(PORT) -b 1500000 $(KERNELIMG)
+	$(TERM) --eol LF --dtr 0 --rts 0 --filter direct $(PORT) 115200
 
 spike: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(SPIKE) $(UCOREIMG)
