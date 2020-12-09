@@ -1,7 +1,5 @@
-# riscv64-ucore
-public repository for 2020 operating system course project "riscv64-ucore"
+# 环境配置
+关于环境配置可以在[这里](https://github.com/NKU-EmbeddedSystem/riscv64-ucore/blob/k210-lab0/README.md)找到
 
-based on [bbl-ucore](https://github.com/ring00/bbl-ucore) and [ucore](https://github.com/chyyuu/ucore_os_lab)
-
-预编译好的riscv工具链下载
-https://www.sifive.com/boards
+# 与运行在qemu上版本的代码改动
+无
