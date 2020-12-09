@@ -33,7 +33,7 @@
 #define SD_CMD8_CRC             (0x87)
 #define SD_HIGH_CAPACITY        (0x40000000)
 #define SD_ERROR_RES            (0xFF)
-#define SD_TIMEMOUT_COUNT       (0xFFFF)
+#define SD_TIMEMOUT_COUNT       (0xFF)
 
 static void sdcard_pin_mapping_init();
 static void sdcard_gpiohs_init();
@@ -50,13 +50,13 @@ static uint8_t sd_get_R1_response();
 static void sd_get_R3_rest_response(uint8_t *frame);
 static void sd_get_R7_rest_response(uint8_t *frame);
 static uint8_t sd_get_data_write_response();
-static void sd_switch_to_SPI_mode();
-static void sd_negotiate_voltage();
-static void sd_set_SDXC_capacity();
-static void sd_query_capacity_status();
-static void sd_get_cardinfo(SD_CardInfo *cardinfo);
-static void sd_get_csdregister(SD_CSD *SD_csd);
-static void sd_get_cidregister(SD_CID *SD_cid);
+static int sd_switch_to_SPI_mode();
+static int sd_negotiate_voltage();
+static int sd_set_SDXC_capacity();
+static int sd_query_capacity_status();
+static int sd_get_cardinfo(SD_CardInfo *cardinfo);
+static int sd_get_csdregister(SD_CSD *SD_csd);
+static int sd_get_cidregister(SD_CID *SD_cid);
 static void sd_test();
 
 sdcard_hardware_pin_config_t config = {
@@ -76,15 +76,24 @@ void sd_init()
 
     // Part 2: SD protocol(SPI Mode)
     sd_SPI_mode_prepare();
-    sd_switch_to_SPI_mode();
-    sd_negotiate_voltage();
-    sd_set_SDXC_capacity();
-    sd_query_capacity_status();
+
+    if(sd_switch_to_SPI_mode() != 0)
+        return;
+    if(sd_negotiate_voltage() != 0)
+        return;
+    if(sd_set_SDXC_capacity() != 0)
+        return;
+    if(sd_query_capacity_status() != 0)
+        return;
+
     SD_HIGH_SPEED_ENABLE();
-    sd_get_cardinfo(&cardinfo);
+
+    if(sd_get_cardinfo(&cardinfo) != 0)
+        return;
 
     // Part 3: Read/Write test
-    sd_test();
+//    sd_test();
+    cprintf("Successfully initialize SD card!\n");
 }
 
 uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
@@ -276,7 +285,7 @@ static uint8_t sd_get_R1_response()
         if (result != SD_EMPTY_FILL)
             return result;
     }
-    panic("Timeout to get R1 response!");
+    return SD_ERROR_RES;
 }
 
 static void sd_get_R3_rest_response(uint8_t *frame)
@@ -305,28 +314,36 @@ static uint8_t sd_get_data_write_response()
     return SD_TRANS_MODE_RESULT_OK;
 }
 
-static void sd_switch_to_SPI_mode()
+static int sd_switch_to_SPI_mode()
 {
     uint8_t result;
     sd_send_cmd(SD_CMD0, SD_CMD0_ARGS, SD_CMD0_CRC);
     result = sd_get_R1_response();
     sd_end_cmd();
-    if (result != SD_INIT_MODE_RESULT_OK)
-        panic("Fail to switch to SPI mode!\n");
+
+    if (result != SD_INIT_MODE_RESULT_OK){
+        cprintf("Fail to connect to SD card!\n");
+        return SD_ERROR_RES;
+    }
+    return 0;
 }
 
-static void sd_negotiate_voltage()
+static int sd_negotiate_voltage()
 {
     uint8_t frame[SD_R7_RESPONSE_REST_LENGTH],result;
     sd_send_cmd(SD_CMD8, SD_VOLTAGE_SELECT | SD_CHECK_PATTERN, SD_CMD8_CRC);
     result = sd_get_R1_response();
     sd_get_R7_rest_response(frame);
     sd_end_cmd();
-    if (result != SD_INIT_MODE_RESULT_OK)
-        panic("Fail to negotiate voltage!\n");
+
+    if (result != SD_INIT_MODE_RESULT_OK){
+        cprintf("Fail to negotiate voltage with SD card!\n");
+        return SD_ERROR_RES;
+    }
+    return 0;
 }
 
-static void sd_set_SDXC_capacity()
+static int sd_set_SDXC_capacity()
 {
     uint8_t result;
 
@@ -336,19 +353,22 @@ static void sd_set_SDXC_capacity()
         sd_send_cmd(SD_CMD55, SD_CMD55_ARGS, SD_CMD55_CRC);
         result = sd_get_R1_response();
         sd_end_cmd();
-        if (result != SD_INIT_MODE_RESULT_OK)
-            panic("Fail to prepare application command when set SDXC capacity!\n");
+        if (result != SD_INIT_MODE_RESULT_OK){
+            cprintf("Fail to prepare application command when set SDXC capacity!\n");
+            return SD_ERROR_RES;
+        }
 
         sd_send_cmd(SD_ACMD41, SD_HIGH_CAPACITY, SD_ACMD41_CRC);
         result = sd_get_R1_response();
         sd_end_cmd();
         if (result == SD_TRANS_MODE_RESULT_OK)
-            return;
+            return 0;
     }
-    panic("Timeout to set card capacity!\n");
+    cprintf("Timeout to set card capacity!\n");
+    return SD_ERROR_RES;
 }
 
-static void sd_query_capacity_status()
+static int sd_query_capacity_status()
 {
     uint8_t frame[SD_R3_RESPONSE_REST_LENGTH], result;
 
@@ -362,34 +382,47 @@ static void sd_query_capacity_status()
         if (result == SD_TRANS_MODE_RESULT_OK)
             break;
     }
-    if (timeout == 0)
-        panic("Timeout to query card capacity status!\n");
-
+    if (timeout == 0) {
+        cprintf("Timeout to query card capacity status!\n");
+        return SD_ERROR_RES;
+    }
     // protocol defined correct response format
-    if ((frame[0] & 0x40) == 0)
-        panic("SDXC card capacity status wrong!\n");
+    if ((frame[0] & 0x40) == 0) {
+        cprintf("SDXC card capacity status wrong!\n");
+        return SD_ERROR_RES;
+    }
+    return 0;
 }
 
-static void sd_get_cardinfo(SD_CardInfo *cardinfo)
+static int sd_get_cardinfo(SD_CardInfo *cardinfo)
 {
-    sd_get_csdregister(&cardinfo->SD_csd);
-    sd_get_cidregister(&cardinfo->SD_cid);
+    if(sd_get_csdregister(&cardinfo->SD_csd) != 0)
+        return SD_ERROR_RES;
+    if(sd_get_cidregister(&cardinfo->SD_cid) != 0)
+        return SD_ERROR_RES;
+
     cardinfo->CardCapacity = (cardinfo->SD_csd.DeviceSize + 1) * 2 * SECTOR_SIZE;
     cardinfo->CardBlockSize = (1 << (cardinfo->SD_csd.RdBlockLen));
     cardinfo->CardCapacity *= cardinfo->CardBlockSize;
     cardinfo->active = 1;
+
+    return 0;
 }
 
-static void sd_get_csdregister(SD_CSD *SD_csd)
+static int sd_get_csdregister(SD_CSD *SD_csd)
 {
     uint8_t csd_frame[18];
 
     // protocol
     sd_send_cmd(SD_CMD9, 0, 0);
-    if (sd_get_R1_response() != SD_TRANS_MODE_RESULT_OK)
-        panic("Get CSD cmd error!\n");
-    if (sd_get_R1_response() != SD_START_DATA_READ_RESPONSE)
-        panic("Get CSD data response error!\n");
+    if (sd_get_R1_response() != SD_TRANS_MODE_RESULT_OK) {
+        cprintf("Get CSD cmd error!\n");
+        return SD_ERROR_RES;
+    }
+    if (sd_get_R1_response() != SD_START_DATA_READ_RESPONSE) {
+        cprintf("Get CSD data response error!\n");
+        return SD_ERROR_RES;
+    }
 
     // retrieve data, 16 for SD_CID, 2 for CRC
     sd_read_data(csd_frame, 18);
@@ -446,17 +479,23 @@ static void sd_get_csdregister(SD_CSD *SD_csd)
 
     SD_csd->CSD_CRC = csd_frame[15] >> 1;
     SD_csd->Reserved4 = 1;
+
+    return 0;
 }
 
-static void sd_get_cidregister(SD_CID *SD_cid) {
+static int sd_get_cidregister(SD_CID *SD_cid) {
     uint8_t cid_frame[18];
 
     // protocol
     sd_send_cmd(SD_CMD10, SD_CMD10_ARGS, SD_CMD10_CRC);
-    if (sd_get_R1_response() != SD_TRANS_MODE_RESULT_OK)
-        panic("Get CID cmd error!\n");
-    if (sd_get_R1_response() != SD_START_DATA_READ_RESPONSE)
-        panic("Get CID data response error!\n");
+    if (sd_get_R1_response() != SD_TRANS_MODE_RESULT_OK) {
+        cprintf("Get CID cmd error!\n");
+        return SD_ERROR_RES;
+    }
+    if (sd_get_R1_response() != SD_START_DATA_READ_RESPONSE) {
+        cprintf("Get CID data response error!\n");
+        return SD_ERROR_RES;
+    }
 
     // retrieve data, 16 for SD_CID, 2 for CRC
     sd_read_data(cid_frame, 18);
@@ -481,6 +520,8 @@ static void sd_get_cidregister(SD_CID *SD_cid) {
     SD_cid->ManufactDate |= cid_frame[14];
     SD_cid->CID_CRC = cid_frame[15] >> 1;
     SD_cid->Reserved2 = 1;
+
+    return 0;
 }
 
 static void sd_test()
