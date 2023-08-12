@@ -102,6 +102,7 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
+
         proc->state = PROC_UNINIT;
         proc->pid = -1;
         proc->runs = 0;
@@ -369,6 +370,17 @@ proc_init(void) {
         panic("cannot alloc idleproc.\n");
     }
 
+    // check some key point of proc structure
+    int *context_mem = (int*) kmalloc(sizeof(struct context));
+    memset(context_mem, 0, sizeof(struct context));
+    int context_init_flag = memcmp(&(idleproc->context), context_mem, sizeof(struct context));
+
+    if(idleproc->cr3 == boot_cr3 && idleproc->tf == NULL && !context_init_flag){
+        cprintf("alloc_proc() maybe correct!\n");
+
+    }
+
+    
     idleproc->pid = 0;
     idleproc->state = PROC_RUNNABLE;
     idleproc->kstack = (uintptr_t)bootstack;
