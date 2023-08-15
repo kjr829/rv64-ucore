@@ -1,4 +1,4 @@
-# lab1 2/n 中断处理程序
+### 中断处理程序
 
 中断处理需要初始化，所以我们在`init.c`里调用一些初始化的函数
 
@@ -25,11 +25,6 @@ int kern_init(void) {
     clock_init();  
 	//intr.h的函数，使能中断
     intr_enable();  
-
-    // LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()
-    // user/kernel mode switch test
-    // lab1_switch_test();
-    /* do nothing */
     while (1)
         ;
 }
@@ -106,10 +101,12 @@ void interrupt_handler(struct trapframe *tf) {
             break;
         case IRQ_S_TIMER:
             //时钟中断
-            clock_set_next_event();
-            if (++ticks % TICK_NUM == 0) {
-                print_ticks();
-            }
+            /* LAB1 EXERCISE2   YOUR CODE :  */
+            /*(1)设置下次时钟中断
+             *(2)计数器（ticks）加一
+             *(3)当计数器加到100的时候，我们会输出一个`100ticks`表示我们触发了100次时钟中断，同时打印次数（num）加一
+            * (4)判断打印次数，当打印次数为10时，调用<sbi.h>中的关机函数关机
+            */
             break;
         case IRQ_H_TIMER:
             cprintf("Hypervisor software interrupt\n");
@@ -142,8 +139,20 @@ void exception_handler(struct trapframe *tf) {
         case CAUSE_FAULT_FETCH:
             break;
         case CAUSE_ILLEGAL_INSTRUCTION:
+            //非法指令异常处理
+            /* LAB1 CHALLENGE3   YOUR CODE :  */
+            /*(1)输出指令异常类型（ Illegal instruction）
+             *(2)输出异常指令地址
+             *(3)更新 tf->epc寄存器
+             */
             break;
         case CAUSE_BREAKPOINT:
+            //非法指令异常处理
+            /* LAB1 CHALLLENGE3   YOUR CODE :  */
+            /*(1)输出指令异常类型（ breakpoint）
+             *(2)输出异常指令地址
+             *(3)更新 tf->epc寄存器
+             */
             break;
         case CAUSE_MISALIGNED_LOAD:
             break;

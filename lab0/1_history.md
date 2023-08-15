@@ -1,4 +1,4 @@
-# lab0  1/3 溯源: ucore的历史
+#  溯源: ucore的历史
 
 2006年, MIT的Frans Kaashoek等人参考PDP-11上的UNIX Version 6写了一个可在x86指令集架构上运行的操作系统xv6（基于MIT License)。（cited from [classical ucore](https://chyyuu.gitbooks.io/ucore_os_docs/content/lab0/lab0_2_1_about_labs.html)）
 

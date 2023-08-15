@@ -1,4 +1,4 @@
-# 内存布局, OpenSBI, bin, elf
+### OpenSBI, bin, elf
 
 最小可执行内核里, 我们主要完成两件事:
 
@@ -21,7 +21,7 @@ QEMU会帮助我们模拟一块riscv64的CPU，一块物理内存，还会借助
 
 这个“其他程序”，我们一般称之为bootloader. 很好理解：他负责boot(开机)，还负责load(加载OS到内存里)，所以叫bootloader.
 
-在QEMU模拟的riscv计算机里，我们使用QEMU自带的bootloader: OpenSBI固件。
+在QEMU模拟的riscv计算机里，我们使用QEMU自带的bootloader: OpenSBI固件，那么在 Qemu 开始执行任何指令之前，首先两个文件将被加载到 Qemu 的物理内存中：即作为 bootloader 的 OpenSBI.bin 被加载到物理内存以物理地址 0x80000000 开头的区域上，同时内核镜像 os.bin 被加载到以物理地址 0x80200000 开头的区域上
 
 >  **须知**
 >
@@ -62,7 +62,7 @@ OpenSBI怎样知道把操作系统加载到内存的什么位置？总不能随�
 
 ​	OpenSBI: 你说啥？	
 
-两个版本的故事是因为，我们有两种不同的可执行文件格式：`elf`(e是executable的意思， l是linkable的意思，f是format的意思)和`bin`(binary)。
+两个版本的故事是因为，我们有两种不同的可执行文件格式：`elf`(e是executable的意思， l是linkable的意思，f是format的意思)和`bin`(binary)，为了正确地和上一阶段的 OpenSBI 对接，我们需要保证内核的第一条指令位于物理地址 0x80200000 处。为此，我们需要将内核镜像预先加载到 Qemu 物理内存以地址 0x80200000 开头的区域上。一旦 CPU 开始执行内核的第一条指令，证明计算机的控制权已经被移交给我们的内核。
 
 `elf`文件([wikipedia: elf](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format))比较复杂，包含一个文件头(ELF header), 包含冗余的调试信息，指定程序每个section的内存布局，需要解析program header才能知道各段(section)的信息。如果我们已经有一个完整的操作系统来解析elf文件，那么elf文件可以直接执行。但是对于OpenSBI来说，elf格式还是太复杂了，把操作系统内核的elf文件交给OpenSBI就会发生版本2的悲惨故事。
 

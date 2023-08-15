@@ -1,8 +1,6 @@
-# lab0  3/3 开搞：搭建实验环境
+# 开搞：搭建实验环境
 
 说了这么多，现在该动手了。Make your hands dirty!
-
-如果你使用windows系统，推荐在windows subsystem for linux（WSL) 下进行开发。
 
 方便起见，可以先在终端里设置一个叫做**RISCV**的环境变量(在bash命令里可以通过**$RISCV**使用)，作为你安装所有和riscv有关的软件的路径。在`/etc/profile`里面写一行`export RISCV=/your/path/to/riscv`之类的东西就行。后面安装的各个项目最好也放在上面的的路径里面。
 
@@ -14,7 +12,25 @@
 
 放心，这里不需要你自己写编译器。我们使用现有的riscv-gcc编译器即可。从https://github.com/riscv/riscv-gcc clone下来，然后在x86架构上编译riscv-gcc编译器为可执行的x86程序，就可以运行它，来把你的程序源代码编译成riscv架构的可执行文件了。这有点像绕口令，但只要有一点编译原理的基础就可以理解。不过，这个riscv-gcc仓库很大，而且自己编译工具链总是一件麻烦的事。
 
-其实，没必要那么麻烦，我们大可以使用别人已经编译好的编译器的可执行文件，也就是所谓的**预编译（prebuilt）**工具链，下载下来，放在你喜欢的地方（比如之前定义的**\$RISCV**），配好路径（把编译器的位置加到系统的**PATH**环境变量里），就能在终端使用了。我们推荐使用sifive公司提供的预编译工具链，进入 https://d2pn104n81t9m2.cloudfront.net/products/tools/ ，找到 “Prebuilt RISC‑V GCC Toolchain and Emulator”，下载“GNU Embedded Toolchain ”中适合你的操作系统的版本即可。(注意，如果你是wsl, 需要下载适合ubuntu版本的编译器)
+其实，没必要那么麻烦，我们大可以使用别人已经编译好的编译器的可执行文件，也就是所谓的**预编译（prebuilt）**工具链，下载下来，放在你喜欢的地方（比如之前定义的**\$RISCV**），配好路径（把编译器的位置加到系统的**PATH**环境变量里），就能在终端使用了。我们推荐使用sifive公司提供的预编译工具链，进入https://d2pn104n81t9m2.cloudfront.net/products/tools/ ，找到 “Prebuilt RISC‑V GCC Toolchain and Emulator”，下载“GNU Embedded Toolchain ”中适合你的操作系统的版本即可。(注意，如果你是wsl, 需要下载适合ubuntu版本的编译器)
+将 RISCV/bin 添加到 bashrc当中，首先利用vim进入~/.bashrc文档，摁住ctrl+g，直接跳到最后一行，摁一下i键，进入插入模式，现在可以编辑文档了
+
+```sh
+vim ~/.bashrc
+```
+
+我们在bashrc的最后添加路径
+
+```shell
+export RISCV=PATH_TO_INSTALL（你RISCV预编译链下载的路径）
+export PATH=$RISCV/bin:$PATH
+```
+
+路径添加好了，该关闭~/.bashrc了，摁一下esc键，退出插入模式； 输入冒号:wq，关闭bashrc；这时候还没有生效!需要source一下，source命令的含义的博客：
+
+```shell
+source ~/.bashrc
+```
 
 配置好后，在终端输入`riscv64-unknown-elf-gcc -v`查看安装的gcc版本, 如果输出一大堆东西且最后一行有`gcc version 某个数字.某个数字.某个数字`，说明gcc配置成功，否则需要检查一下哪里做错了，比如环境变量**PATH**配置是否正确。一般需要把一个形如`..../bin`的目录加到**PATH**里。 
 

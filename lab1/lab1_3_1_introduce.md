@@ -1,8 +1,8 @@
-# lab1 0/n: 断,都可以断
+### riscv64 中断介绍
 
-*弱水汩其为难兮，路中断而不通。*
+#### 中断概念
 
-现在我们要在最小可执行内核的基础上, 支持中断机制, 并且用时钟中断来检验我们的中断处理系统。
+##### 中断机制
 
 **中断**（interrupt）机制，就是不管CPU现在手里在干啥活，收到“中断”的时候，都先放下来去处理其他事情，处理完其他事情可能再回来干手头的活。
 
@@ -18,6 +18,16 @@
 - 控制转交给相应中断处理代码进行处理
 - 返回正在运行的程序
 
+##### **中断分类**
+
+异常(Exception)，指在执行一条指令的过程中发生了错误，此时我们通过中断来处理错误。最常见的异常包括：访问无效内存地址、执行非法指令(除零)、发生缺页等。他们有的可以恢复(如缺页)，有的不可恢复(如除零)，只能终止程序执行。
+
+陷入(Trap)，指我们主动通过一条指令停下来，并跳转到处理函数。常见的形式有通过ecall进行系统调用(syscall)，或通过ebreak进入断点(breakpoint)。
+
+外部中断(Interrupt)，简称中断，指的是 CPU 的执行过程被外设发来的信号打断，此时我们必须先停下来对该外设进行处理。典型的有定时器倒计时结束、串口收到数据等。
+
+外部中断是异步(asynchronous)的，CPU 并不知道外部中断将何时发生。CPU 也并不需要一直在原地等着外部中断的发生，而是执行代码，有了外部中断才去处理。我们知道，CPU 的主频远高于 I/O 设备，这样避免了 CPU 资源的浪费。
+
 由于中断处理需要进行较高权限的操作，中断处理程序一般处于**内核态**，或者说，处于“比被打断的程序更高的特权级”。注意，在RISCV里，中断(interrupt)和异常(exception)统称为"trap"。
 
 > 扩展
@@ -32,7 +42,17 @@
 > We use the term **trap** to refer to the transfer of control to a trap handler caused by either an
 > exception or an interrupt.
 
-## 寄存器
+####  riscv64 权限模式
+
+#####   riscv64 的 M Mode
+
+M-mode(机器模式，缩写为 M 模式)是 RISC-V 中 hart(hardware thread,硬件线程)可以执行的最高权限模式。在 M 模式下运行的 hart 对内存,I/O 和一些对于启动和配置系统来说必要的底层功能有着完全的使用权。默认情况下,发生所有异常(不论在什么权限模式下)的时候,控制权都会被移交到 M 模式的异常处理程序。它是唯一所有标准 RISC-V 处理器都必须实现的权限模式。
+
+#####  riscv64 的 S Mode
+
+S-mode(监管者模式，缩写为 S 模式)是支持现代类 Unix 操作系统的权限模式，支持基于页面的虚拟内存机制是其核心。 Unix 系统中的大多数例外都应该进行 S 模式下的系统调用。M 模式的异常处理程序可以将异常重新导向 S 模式，也支持通过异常委托机制（Machine Interrupt Delegation,机器中断委托）选择性地将中断和同步异常直接交给 S 模式处理,而完全绕过 M 模式。
+
+#### 寄存器
 
 除了32个通用寄存器之外，RISCV架构还有大量的 **控制状态寄存器** **Control and Status Registers**(CSRs)。其中有几个重要的寄存器和中断机制有关。
 
@@ -102,7 +122,7 @@
 > instruction as described below. For other exceptions, stval is set to zero, but a future standard
 > may redefine stval’s setting for other exceptions.
 
-## 特权指令
+#### 特权指令
 
 RISCV支持以下和中断相关的特权指令：
 

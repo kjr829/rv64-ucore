@@ -1,4 +1,4 @@
-# lab1 4/n 从SBI到stdio
+### 从SBI到stdio
 
 OpenSBI作为运行在M态的软件（或者说固件）, 提供了一些接口供我们编写内核的时候使用。
 

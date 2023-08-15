@@ -1,4 +1,16 @@
-# 链接脚本，入口点
+### 内存布局，链接脚本，入口点
+
+一般来说，一个程序按照功能不同会分为下面这些段：
+
+.text 段，即代码段，存放汇编代码；
+.rodata 段，即只读数据段，顾名思义里面存放只读数据，通常是程序中的常量；
+.data 段，存放被初始化的可读写数据，通常保存程序中的全局变量；
+.bss 段，存放被初始化为 00 的可读写数据，与 .data 段的不同之处在于我们知道它要被初始化为 00 ，因此在可执行文件中只需记录这个段的大小以及所在位置即可，而不用记录里面的数据。
+stack ，即栈，用来存储程序运行过程中的局部变量，以及负责函数调用时的各种机制。它从高地址向低地址增长；
+heap ，即堆，用来支持程序运行过程中内存的动态分配，比如说你要读进来一个字符串，在你写程序的时候你也不知道它的长度究竟为多少，于是你只能在运行过程中，知道了字符串的长度之后，再在堆中给这个字符串分配内存。
+内存布局，也就是指这些段各自所放的位置。一种典型的内存布局如下：
+
+![](program_memory_layout.png)
 
 gnu工具链中，包含一个链接器`ld`
 
@@ -97,11 +109,7 @@ SECTIONS
     # https://sourceware.org/binutils/docs/as/Global.html#Global
 kern_entry: 
     la sp, bootstacktop 
-    #将bootstacktop的地址加载到sp(stack pointer)寄存器中, 使用我们分配的内核栈
-
     tail kern_init 
-    #调用kern_init, 这是我们要用C语言编写的一个函数, tail是riscv伪指令，作用相当于调用函数（跳转）
-
 #开始data section
 .section .data
     .align PGSHIFT #按照2^PGSHIFT进行地址对齐, 也就是对齐到下一页 PGSHIFT在 mmu.h定义
