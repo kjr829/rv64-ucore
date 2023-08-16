@@ -7,7 +7,6 @@
 #include <pmm.h>
 #include <riscv.h>
 #include <swap.h>
-#include <kmalloc.h>
 
 /* 
   vmm design include two parts: mm_struct (mm) & vma_struct (vma)
@@ -19,7 +18,7 @@
    golbal functions
      struct mm_struct * mm_create(void)
      void mm_destroy(struct mm_struct *mm)
-     int do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr)
+     int do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr)
 --------------
   vma related functions:
    global functions
@@ -34,6 +33,26 @@
      void check_vma_struct(void);
      void check_pgfault(void);
 */
+
+// szx func : print_vma and print_mm
+void print_vma(char *name, struct vma_struct *vma){
+	cprintf("-- %s print_vma --\n", name);
+	cprintf("   mm_struct: %p\n",vma->vm_mm);
+	cprintf("   vm_start,vm_end: %x,%x\n",vma->vm_start,vma->vm_end);
+	cprintf("   vm_flags: %x\n",vma->vm_flags);
+	cprintf("   list_entry_t: %p\n",&vma->list_link);
+}
+
+void print_mm(char *name, struct mm_struct *mm){
+	cprintf("-- %s print_mm --\n",name);
+	cprintf("   mmap_list: %p\n",&mm->mmap_list);
+	cprintf("   map_count: %d\n",mm->map_count);
+	list_entry_t *list = &mm->mmap_list;
+	for(int i=0;i<mm->map_count;i++){
+		list = list_next(list);
+		print_vma(name, le2vma(list,list_link));
+	}
+}
 
 static void check_vmm(void);
 static void check_vma_struct(void);
@@ -58,7 +77,7 @@ mm_create(void) {
 
 // vma_create - alloc a vma_struct & initialize it. (addr range: vm_start~vm_end)
 struct vma_struct *
-vma_create(uintptr_t vm_start, uintptr_t vm_end, uint32_t vm_flags) {
+vma_create(uintptr_t vm_start, uintptr_t vm_end, uint_t vm_flags) {
     struct vma_struct *vma = kmalloc(sizeof(struct vma_struct));
 
     if (vma != NULL) {
@@ -146,9 +165,9 @@ mm_destroy(struct mm_struct *mm) {
     list_entry_t *list = &(mm->mmap_list), *le;
     while ((le = list_next(list)) != list) {
         list_del(le);
-        kfree(le2vma(le, list_link));  //kfree vma        
+        kfree(le2vma(le, list_link),sizeof(struct vma_struct));  //kfree vma        
     }
-    kfree(mm); //kfree mm
+    kfree(mm, sizeof(struct mm_struct)); //kfree mm
     mm=NULL;
 }
 
@@ -162,14 +181,20 @@ vmm_init(void) {
 // check_vmm - check correctness of vmm
 static void
 check_vmm(void) {
+    size_t nr_free_pages_store = nr_free_pages();
     check_vma_struct();
     check_pgfault();
+
+    nr_free_pages_store--;	// szx : Sv39三级页表多占一个内存页，所以执行此操作
+    assert(nr_free_pages_store == nr_free_pages());
 
     cprintf("check_vmm() succeeded.\n");
 }
 
 static void
 check_vma_struct(void) {
+    size_t nr_free_pages_store = nr_free_pages();
+
     struct mm_struct *mm = mm_create();
     assert(mm != NULL);
 
@@ -223,6 +248,8 @@ check_vma_struct(void) {
 
     mm_destroy(mm);
 
+    assert(nr_free_pages_store == nr_free_pages());
+
     cprintf("check_vma_struct() succeeded!\n");
 }
 
@@ -231,16 +258,18 @@ struct mm_struct *check_mm_struct;
 // check_pgfault - check correctness of pgfault handler
 static void
 check_pgfault(void) {
+	// char *name = "check_pgfault";
     size_t nr_free_pages_store = nr_free_pages();
 
     check_mm_struct = mm_create();
-    assert(check_mm_struct != NULL);
 
+    assert(check_mm_struct != NULL);
     struct mm_struct *mm = check_mm_struct;
     pde_t *pgdir = mm->pgdir = boot_pgdir;
     assert(pgdir[0] == 0);
 
     struct vma_struct *vma = vma_create(0, PTSIZE, VM_WRITE);
+
     assert(vma != NULL);
 
     insert_vma_struct(mm, vma);
@@ -258,16 +287,17 @@ check_pgfault(void) {
     }
     assert(sum == 0);
 
-    pde_t *pd1=pgdir,*pd0=page2kva(pde2page(pgdir[0]));
     page_remove(pgdir, ROUNDDOWN(addr, PGSIZE));
-    free_page(pde2page(pd0[0]));
-    free_page(pde2page(pd1[0]));
+
+    free_page(pde2page(pgdir[0]));
+
     pgdir[0] = 0;
-    flush_tlb();
 
     mm->pgdir = NULL;
     mm_destroy(mm);
+
     check_mm_struct = NULL;
+    nr_free_pages_store--;	// szx : Sv39第二级页表多占了一个内存页，所以执行此操作
 
     assert(nr_free_pages_store == nr_free_pages());
 
@@ -298,7 +328,7 @@ volatile unsigned int pgfault_num=0;
  *            or supervisor mode (0) at the time of the exception.
  */
 int
-do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
+do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr) {
     int ret = -E_INVAL;
     //try to find a vma which include addr
     struct vma_struct *vma = find_vma(mm, addr);
@@ -318,14 +348,14 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
      */
     uint32_t perm = PTE_U;
     if (vma->vm_flags & VM_WRITE) {
-        perm |= READ_WRITE;
+        perm |= (PTE_R | PTE_W);
     }
     addr = ROUNDDOWN(addr, PGSIZE);
 
     ret = -E_NO_MEM;
 
     pte_t *ptep=NULL;
-    /*LAB3 EXERCISE 1: YOUR CODE
+    /*LAB3 EXERCISE 1: YOUR CODE`
     * Maybe you want help comment, BELOW comments can help you finish the code
     *
     * Some Useful MACROs and DEFINEs, you can use them in below implementation.
@@ -342,36 +372,42 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
-    // try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
-    // (notice the 3th parameter '1')
-    if ((ptep = get_pte(mm->pgdir, addr, 1)) == NULL) {
-        cprintf("get_pte in do_pgfault failed\n");
-        goto failed;
-    }
-    
-    if (*ptep == 0) { // if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
+
+    /*LAB3 EXERCISE 1: YOUR CODE*/
+    ptep = get_pte(mm->pgdir, addr, 1);  //(1) try to find a pte, if pte's
+                                         //PT(Page Table) isn't existed, then
+                                         //create a PT.
+    if (*ptep == 0) {
         if (pgdir_alloc_page(mm->pgdir, addr, perm) == NULL) {
             cprintf("pgdir_alloc_page in do_pgfault failed\n");
             goto failed;
         }
-    }
-    else { // if this pte is a swap entry, then load data from disk to a page with phy addr
-           // and call page_insert to map the phy addr with logical addr
-        if(swap_init_ok) {
-            struct Page *page=NULL;
-            if ((ret = swap_in(mm, addr, &page)) != 0) {
-                cprintf("swap_in in do_pgfault failed\n");
-                goto failed;
-            }    
-            page_insert(mm->pgdir, page, addr, perm);
-            swap_map_swappable(mm, addr, page, 1);
+    } else {
+        /*LAB3 EXERCISE 3: YOUR CODE
+        * 请你根据以下信息提示，补充函数
+        * 现在我们认为pte是一个交换条目，那我们应该从磁盘加载数据并放到带有phy addr的页面，
+        * 并将phy addr与逻辑addr映射，触发交换管理器记录该页面的访问情况
+        *
+        *  一些有用的宏和定义，可能会对你接下来代码的编写产生帮助(显然是有帮助的)
+        *  宏或函数:
+        *    swap_in(mm, addr, &page) : 分配一个内存页，然后根据
+        *    PTE中的swap条目的addr，找到磁盘页的地址，将磁盘页的内容读入这个内存页
+        *    page_insert ： 建立一个Page的phy addr与线性addr la的映射
+        *    swap_map_swappable ： 设置页面可交换
+        */
+        if (swap_init_ok) {
+            struct Page *page = NULL;
+            // 你要编写的内容在这里
+            //(1）根据mm和addr，尝试将右磁盘page的内容加载到page管理的内存中
+            //(2) 根据mm，addr AND 页，设置phy 地址 <---> 的映射逻辑地址
+            //(3) 使页面可交换
             page->pra_vaddr = addr;
-        }
-        else {
-            cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
+        } else {
+            cprintf("no swap_init_ok but ptep is %x, failed\n", *ptep);
             goto failed;
         }
    }
+
    ret = 0;
 failed:
     return ret;
