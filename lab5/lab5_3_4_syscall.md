@@ -1,4 +1,4 @@
-## lab5 2/n 系统调用
+### 系统调用实现 
 
 系统调用，是用户态(U mode)的程序获取内核态（S mode)服务的方法，所以需要在用户态和内核态都加入对应的支持和处理。我们也可以认为用户态只是提供一个调用的接口，真正的处理都在内核态进行。
 
@@ -312,3 +312,5 @@ void exception_handler(struct trapframe *tf) {
 ```
 
 注意我们需要让CPU进入U mode执行`do_execve()`加载的用户程序。进行系统调用`sys_exec`之后，我们在trap返回的时候调用了`sret`指令，这时只要`sstatus`寄存器的`SPP`二进制位为0，就会切换到U mode，但`SPP`存储的是“进入trap之前来自什么特权级”，也就是说我们这里ebreak之后`SPP`的数值为1，sret之后会回到S mode在内核态执行用户程序。所以`load_icode()`函数在构造新进程的时候，会把`SSTATUS_SPP`设置为0，使得`sret`的时候能回到U mode。
+
+至此，实验五中的主要工作描述完毕。
