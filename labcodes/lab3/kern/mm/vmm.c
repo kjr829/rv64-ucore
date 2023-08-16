@@ -355,7 +355,7 @@ do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr) {
     ret = -E_NO_MEM;
 
     pte_t *ptep=NULL;
-    /*LAB3 EXERCISE 1: YOUR CODE`
+    /*
     * Maybe you want help comment, BELOW comments can help you finish the code
     *
     * Some Useful MACROs and DEFINEs, you can use them in below implementation.
@@ -373,7 +373,7 @@ do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr) {
     *
     */
 
-    /*LAB3 EXERCISE 1: YOUR CODE*/
+
     ptep = get_pte(mm->pgdir, addr, 1);  //(1) try to find a pte, if pte's
                                          //PT(Page Table) isn't existed, then
                                          //create a PT.
@@ -397,10 +397,15 @@ do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr) {
         */
         if (swap_init_ok) {
             struct Page *page = NULL;
-            // 你要编写的内容在这里
-            //(1）根据mm和addr，尝试将右磁盘page的内容加载到page管理的内存中
-            //(2) 根据mm，addr AND 页，设置phy 地址 <---> 的映射逻辑地址
-            //(3) 使页面可交换
+            // 你要编写的内容在这里，请基于上文说明以及下文的英文注释完成代码编写
+            //(1）According to the mm AND addr, try
+            //to load the content of right disk page
+            //into the memory which page managed.
+            //(2) According to the mm,
+            //addr AND page, setup the
+            //map of phy addr <--->
+            //logical addr
+            //(3) make the page swappable.
             page->pra_vaddr = addr;
         } else {
             cprintf("no swap_init_ok but ptep is %x, failed\n", *ptep);

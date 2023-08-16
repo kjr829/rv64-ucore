@@ -10,7 +10,7 @@
    usually split, and the remainder added to the list as another free block.
    Please see Page 196~198, Section 8.2 of Yan Wei Min's chinese book "Data Structure -- C programming language"
 */
-// LAB2 EXERCISE 1: YOUR CODE
+
 // you should rewrite functions: default_init,default_init_memmap,default_alloc_pages, default_free_pages.
 /*
  * Details of FFMA
@@ -140,7 +140,7 @@ best_fit_free_pages(struct Page *base, size_t n) {
     }
     /*LAB2 EXERCISE 2: YOUR CODE*/ 
     // 编写代码
-    // 将这一系列物理页合并成一个空闲页块，并插入到空闲页块链表中并更新空闲页块链表中的空闲页块数量。具体来说就是设置第一个页块的属性为释放的页数n，并标记为属性页，之后更新可用页块数。
+    // 具体来说就是设置当前页块的属性为释放的页块数、并将当前页块标记为已分配状态、最后增加nr_free的值
 
     if (list_empty(&free_list)) {
         list_add(&free_list, &(base->page_link));
@@ -236,7 +236,7 @@ basic_check(void) {
     free_page(p2);
 }
 
-// LAB2: below code is used to check the best fit allocation algorithm (your EXERCISE 1) 
+// LAB2: below code is used to check the best fit allocation algorithm 
 // NOTICE: You SHOULD NOT CHANGE basic_check, default_check functions!
 static void
 best_fit_check(void) {

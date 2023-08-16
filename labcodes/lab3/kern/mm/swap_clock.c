@@ -51,6 +51,7 @@ _clock_map_swappable(struct mm_struct *mm, uintptr_t addr, struct Page *page, in
     assert(entry != NULL && curr_ptr != NULL);
     //record the page access situlation
     /*LAB3 EXERCISE 4: YOUR CODE*/ 
+    // link the most recent arrival page at the back of the pra_list_head qeueue.
     // 将页面page插入到页面链表pra_list_head的末尾
     // 将页面的visited标志置为1，表示该页面已被访问
     return 0;
