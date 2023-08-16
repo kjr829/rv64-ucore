@@ -1,4 +1,4 @@
-# lab8 1/n 硬盘文件系统SFS
+### 硬盘文件系统SFS
 
 我们从[ucore实验指导书](https://learningos.github.io/ucore_os_webdocs/lab8/lab8_3_3_1_fs_layout.html)摘抄一段关于Simple File System的介绍。
 

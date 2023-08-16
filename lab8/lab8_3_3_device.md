@@ -1,8 +1,8 @@
-# lab8 2/n 设备
+###  设备
 
 在本实验中，为了统一地访问设备(device)，我们可以把一个设备看成一个文件，通过访问文件的接口来访问设备。目前实现了 stdin 设备文件文件、stdout 设备文件、disk0 设备。stdin 设备就是键盘，stdout 设备就是控制台终端的文本显示，而 disk0 设备是承载 SFS 文件系统的磁盘设备。下面看看 ucore 是如何让用户把设备看成文件来访问。
 
-### 设备的定义
+#### 设备的定义
 
 为了表示一个设备，需要有对应的数据结构，ucore 为此定义了 struct device，如下：
 
@@ -98,7 +98,7 @@ static const struct inode_ops dev_node_ops = {
 
 
 
-### stdin设备
+#### stdin设备
 
 trap.c改变了对`stdin`的处理, 将`stdin`作为一个设备(也是一个文件), 通过`sys_read()`接口读取标准输入的数据。
 
@@ -306,7 +306,7 @@ static int stdin_io(struct device *dev, struct iobuf *iob, bool write) {
 
 ```
 
-### stdout设备
+#### stdout设备
 
 `stdout`设备只需要支持写操作，调用`cputchar()`把字符打印到控制台。
 
@@ -326,7 +326,7 @@ static int stdout_io(struct device *dev, struct iobuf *iob, bool write) {
 }
 ```
 
-### disk0设备
+#### disk0设备
 
 封装了一下`ramdisk`的接口，每次读取或者写入若干个block。
 
