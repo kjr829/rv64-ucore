@@ -1,4 +1,4 @@
-# lab2 3/n 页面分配算法
+#### 页面分配算法
 
 我们在`default_pmm.c`定义了一个pmm_manager类型的结构体，并实现它的接口
 
@@ -14,7 +14,7 @@ extern const struct pmm_manager default_pmm_manager;
 #endif /* ! __KERN_MM_DEFAULT_PMM_H__ */
 ```
 
-较为关键的，是一开始如何初始化所有可用页面，以及如何分配和释放页面。这里实现了First Fit算法。
+较为关键的，是一开始如何初始化所有可用页面，以及如何分配和释放页面。大家可以学习下面的代码，其实现了First Fit算法。
 
 ```c
 // kern/mm/default_pmm.c
@@ -147,4 +147,6 @@ const struct pmm_manager default_pmm_manager = {
 
 ```
 
-目前为止的代码可以在[这里](https://github.com/Liurunda/riscv64-ucore/tree/lab2/lab2)找到，遇到困难可以参考。
+所谓First Fit算法就是当需要分配页面时，它会从空闲页块链表中找到第一个适合大小的空闲页块，然后进行分配。当释放页面时，它会将释放的页面添加回链表，并在必要时合并相邻的空闲页块，以最大限度地减少内存碎片。
+
+完成页面分配算法后我们的物理内存管理算是基本实现了，接下来请同学们完成本次实验练习。
