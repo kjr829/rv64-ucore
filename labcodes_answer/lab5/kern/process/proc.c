@@ -103,8 +103,9 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
+
      //LAB5 YOUR CODE : (update LAB4 steps)
-    /*
+     /*
      * below fields(add in LAB5) in proc_struct need to be initialized  
      *       uint32_t wait_state;                        // waiting state
      *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
@@ -121,6 +122,7 @@ alloc_proc(void) {
         proc->cr3 = boot_cr3;
         proc->flags = 0;
         memset(proc->name, 0, PROC_NAME_LEN);
+        // lab5 add:
         proc->wait_state = 0;
         proc->cptr = proc->optr = proc->yptr = NULL;
     }

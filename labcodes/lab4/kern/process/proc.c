@@ -172,7 +172,7 @@ proc_run(struct proc_struct *proc) {
         *   lcr3():                   Modify the value of CR3 register
         *   switch_to():              Context switching between two processes
         */
-
+       
     }
 }
 
@@ -212,7 +212,6 @@ int
 kernel_thread(int (*fn)(void *), void *arg, uint32_t clone_flags) {
     struct trapframe tf;
     memset(&tf, 0, sizeof(struct trapframe));
-
     tf.gpr.s0 = (uintptr_t)fn;
     tf.gpr.s1 = (uintptr_t)arg;
     tf.status = (read_csr(sstatus) | SSTATUS_SPP | SSTATUS_SPIE) & ~SSTATUS_SIE;
