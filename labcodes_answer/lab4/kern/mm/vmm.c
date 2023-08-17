@@ -35,6 +35,26 @@
      void check_pgfault(void);
 */
 
+// szx func : print_vma and print_mm
+void print_vma(char *name, struct vma_struct *vma){
+	cprintf("-- %s print_vma --\n", name);
+	cprintf("   mm_struct: %p\n",vma->vm_mm);
+	cprintf("   vm_start,vm_end: %x,%x\n",vma->vm_start,vma->vm_end);
+	cprintf("   vm_flags: %x\n",vma->vm_flags);
+	cprintf("   list_entry_t: %p\n",&vma->list_link);
+}
+
+void print_mm(char *name, struct mm_struct *mm){
+	cprintf("-- %s print_mm --\n",name);
+	cprintf("   mmap_list: %p\n",&mm->mmap_list);
+	cprintf("   map_count: %d\n",mm->map_count);
+	list_entry_t *list = &mm->mmap_list;
+	for(int i=0;i<mm->map_count;i++){
+		list = list_next(list);
+		print_vma(name, le2vma(list,list_link));
+	}
+}
+
 static void check_vmm(void);
 static void check_vma_struct(void);
 static void check_pgfault(void);
@@ -332,14 +352,12 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
         cprintf("get_pte in do_pgfault failed\n");
         goto failed;
     }
-    
     if (*ptep == 0) { // if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
         if (pgdir_alloc_page(mm->pgdir, addr, perm) == NULL) {
             cprintf("pgdir_alloc_page in do_pgfault failed\n");
             goto failed;
         }
-    }
-    else { // if this pte is a swap entry, then load data from disk to a page with phy addr
+    }else { // if this pte is a swap entry, then load data from disk to a page with phy addr
            // and call page_insert to map the phy addr with logical addr
         if(swap_init_ok) {
             struct Page *page=NULL;
