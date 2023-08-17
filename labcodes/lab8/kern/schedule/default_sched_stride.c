@@ -8,7 +8,7 @@
 
 /* You should define the BigStride constant here*/
 
-#define BIG_STRIDE (1 << 30) /* you should give a value, and is ??? */
+#define BIG_STRIDE /* you should give a value, and is ??? */
 
 /* The compare function for two skew_heap_node_t's and the
  * corresponding procs*/
