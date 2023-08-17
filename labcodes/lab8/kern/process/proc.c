@@ -111,7 +111,22 @@ alloc_proc(void) {
      *       uint32_t wait_state;                        // waiting state
      *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
      */
+    //LAB6 YOUR CODE : (update LAB5 steps)
+    /*
+     * below fields(add in LAB6) in proc_struct need to be initialized
+     *     struct run_queue *rq;                       // running queue contains Process
+     *     list_entry_t run_link;                      // the entry linked in run queue
+     *     int time_slice;                             // time slice for occupying the CPU
+     *     skew_heap_entry_t lab6_run_pool;            // FOR LAB6 ONLY: the entry in the run pool
+     *     uint32_t lab6_stride;                       // FOR LAB6 ONLY: the current stride of the process
+     *     uint32_t lab6_priority;                     // FOR LAB6 ONLY: the priority of process, set by lab6_set_priority(uint32_t)
+     */
 
+     //LAB8 YOUR CODE : (update LAB6 steps)
+      /*
+     * below fields(add in LAB6) in proc_struct need to be initialized
+     *       struct files_struct * filesp;                file struct point        
+     */
     }
     return proc;
 }
@@ -208,6 +223,14 @@ proc_run(struct proc_struct *proc) {
         *   lcr3():                   Modify the value of CR3 register
         *   switch_to():              Context switching between two processes
         */
+       //LAB8 YOUR CODE : (update LAB4 steps)
+      /*
+     * below fields(add in LAB6) in proc_struct need to be initialized
+    *       before switch_to();you should flush the tlb
+    *        MACROs or Functions:
+     *       flush_tlb():          flush the tlb        
+     */
+
     }
 }
 
@@ -545,7 +568,8 @@ load_icode(int fd, int argc, char **kargv) {
      *  pgdir_alloc_page - allocate new memory for  TEXT/DATA/BSS/stack parts
      *  lcr3             - update Page Directory Addr Register -- CR3
      */
-  /* (1) create a new mm for current process
+  //You can Follow the code form LAB5 which you have completed  to complete 
+ /* (1) create a new mm for current process 
      * (2) create a new PDT, and mm->pgdir= kernel virtual addr of PDT
      * (3) copy TEXT/DATA/BSS parts in binary to memory space of process
      *    (3.1) read raw data content in file and resolve elfhdr
@@ -560,6 +584,7 @@ load_icode(int fd, int argc, char **kargv) {
      * (7) setup trapframe for user environment
      * (8) if up steps failed, you should cleanup the env.
      */
+    
 }
 
 // this function isn't very correct in LAB8

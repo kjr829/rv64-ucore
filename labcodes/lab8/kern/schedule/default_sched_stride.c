@@ -7,8 +7,8 @@
 #define USE_SKEW_HEAP 1
 
 /* You should define the BigStride constant here*/
-
-#define BIG_STRIDE (1 << 30) /* you should give a value, and is ??? */
+/* LAB6: YOUR CODE */
+#define BIG_STRIDE   /* you should give a value, and is ??? */
 
 /* The compare function for two skew_heap_node_t's and the
  * corresponding procs*/
@@ -125,13 +125,7 @@ stride_pick_next(struct run_queue *rq) {
 static void
 stride_proc_tick(struct run_queue *rq, struct proc_struct *proc) {
      /* LAB6: YOUR CODE */
-    if (proc->time_slice > 0) {
-        proc->time_slice--;
-    }
-    if (proc->time_slice == 0) {
-        proc->need_resched = 1;
-    }
-}
+
 
 struct sched_class default_sched_class = {
      .name = "stride_scheduler",

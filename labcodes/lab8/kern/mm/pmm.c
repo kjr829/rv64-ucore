@@ -335,7 +335,7 @@ struct Page *get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store) {
 //                - and clean(invalidate) pte which is related linear address la
 // note: PT is changed, so the TLB need to be invalidate
 static inline void page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
-    /*
+    /*LAB2 EXERCISE 3: YOUR CODE
      * Please check if ptep is valid, and tlb must be manually updated if
      * mapping is updated
      *
