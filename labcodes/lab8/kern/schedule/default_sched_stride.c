@@ -125,11 +125,7 @@ stride_pick_next(struct run_queue *rq) {
 static void
 stride_proc_tick(struct run_queue *rq, struct proc_struct *proc) {
      /* LAB6: YOUR CODE */
-<<<<<<< HEAD
-
-=======
 }
->>>>>>> refs/remotes/origin/riscv-ucore-lab
 
 struct sched_class default_sched_class = {
      .name = "stride_scheduler",
