@@ -33,6 +33,7 @@ CC		:= $(GCCPREFIX)gcc
 CFLAGS  := -mcmodel=medany -O2 -s -std=gnu99 -Wall -Wextra
 CFLAGS	+= -fno-builtin -nostdinc $(DEFS)
 CFLAGS	+= -fno-stack-protector -ffunction-sections -fdata-sections
+CFLAGS	+= -g
 CTYPE	:= c S
 
 LD      := $(GCCPREFIX)ld
